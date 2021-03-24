@@ -2,6 +2,7 @@ import random
 from shapely.geometry.polygon import Polygon, LineString,Point
 import copy
 class obstacle():
+    '''class for obstacles'''
     def __init__(self,nr_obs):
         self.nr_obs=nr_obs
         self.init_pos=[]
@@ -29,6 +30,7 @@ class obstacle():
         return res
 
     def check_collision(self,curr_pos,next_pos):
+        '''checking collision'''
         if next_pos[0]>10 or next_pos[0]<0 or next_pos[1]>10 or next_pos[1]<0:
             return False
         for i in range(self.nr_obs):

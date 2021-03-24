@@ -5,12 +5,13 @@ from matplotlib.animation import FuncAnimation,PillowWriter
 import time
 from rrt_star import rrt_star
 
-fiter=0
-stage=Stage(10,10,2)
-RRT=rrt_star(stage)
-traj=[[9,8],[1,7]]
+fiter=0 #just for trajectory visualization  
+stage=Stage(10,10,2) #stage H, stage W, size of dynamic obstacle
+RRT=rrt_star(stage) #rrt(stage) or rrt_star(stage)
+traj=[[9,8],[1,7]] #just for debugging
 
 def plot_stage():
+    '''draw moving obstacle'''
     res=stage.obstacle.plot_obs()
     color=['g','c','m','y']
     for i in range(stage.nr_obs):
@@ -18,6 +19,7 @@ def plot_stage():
     return ln,
 
 def default():
+    '''default setting for visuailization'''
     global fiter
     plt.axis([-4, 14, -4, 14])
     plt.plot(stage.pos_start[0],stage.pos_start[1],'ro')
@@ -33,6 +35,7 @@ def default():
         plt.plot(traj[0],traj[1],'b')
 
 def update(frame):
+    '''animation visuailization'''
     stage.move_obs(frame)
     plt.clf()
     default()
@@ -50,5 +53,5 @@ if __name__=="__main__":
     traj=list(map(list, zip(*traj)))
     i=[i for i in range(150)]
     ani = FuncAnimation(fig, update, i ,repeat=False,cache_frame_data=False)
-    ani.save('./result/animation5.gif',writer=writergif)
+    ani.save('./result/animation.gif',writer=writergif)
     #plt.show()
