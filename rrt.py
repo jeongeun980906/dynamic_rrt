@@ -8,7 +8,6 @@ class tree():
     def __init__(self,max_rrt):
         self.pos=[[0,0]]*max_rrt
         self.u=[0]*max_rrt
-        self.child=[0]*max_rrt
         self.parent=[0]*max_rrt
         self.status=['Nan']*max_rrt
         self.time=[0]*max_rrt
@@ -27,7 +26,7 @@ class rrt():
         self.cnt_expansion=10
         self.vmin=1E-1
         self.vmax=5E-1
-        self.threshold=1E-1
+        self.threshold=0.1#1E-1
         self.iter=1
         self.maxIter=1E4
 
@@ -55,8 +54,7 @@ class rrt():
         self.add_node(next_pos,u,fr_idx,'node',time+1)
     
     def search_shortest_node(self, pos, min_time=0):
-         '''given random position in stage, find nearest node
-        it becomes current pose for random search'''
+        '''given random position in stage, find nearest node it becomes current pose for random search'''
         min_dist = math.inf
         min_idx  = 0
         for i in range(self.nr_node):
@@ -76,6 +74,10 @@ class rrt():
         idx_closest = self.search_shortest_node(rand_pos)
         curr_pos = self.tree.pos[idx_closest]
         curr_time = self.tree.time[idx_closest]
+        self.cnt=0
+        if self.iter>500 and self.iter%10==0:
+            print(self.iter)
+            self.vmax*=0.99
         for i in range(self.cnt_expansion):
             # select next position based on velocity
             rand_rad=2*PI*random.random()
@@ -89,12 +91,13 @@ class rrt():
             if self.stage.obstacle.check_collision(curr_pos,next_pos):
                 curr_next_dist=np.linalg.norm(np.asarray(rand_pos)-np.asarray(next_pos))
                 self.expand_node(idx_closest,next_pos,rand_u)
+                self.cnt+=1
             dist2goal=np.linalg.norm(np.asarray(next_pos)-np.asarray(self.pos_goal))
             if dist2goal<self.threshold:
                 print("GOAL! distance to goal left {}".format(dist2goal))
                 print("curr_time: {}".format(curr_time))
                 return True
-
+        self.iter+=1
         return False
     
     def backward(self):

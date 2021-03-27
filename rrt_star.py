@@ -9,10 +9,10 @@ class tree():
     def __init__(self,max_rrt):
         self.pos=[[0,0]]*max_rrt
         self.cost=[0]*max_rrt
-        self.child=[0]*max_rrt
         self.parent=[0]*max_rrt
         self.status=['Nan']*max_rrt
         self.time=[0]*max_rrt
+        self.changes=[]
 
 class rrt_star():
     '''rrt* algorithm'''
@@ -26,12 +26,13 @@ class rrt_star():
         self.nr_node=0
 
         # hyperparameters
-        self.cnt_expansion=10
+        self.cnt_expansion=10 #10
         self.vmin=1E-1
-        self.vmax=5E-1
+        self.vmax=0.4
         self.threshold=1E-1
         self.iter=1
         self.maxIter=1E4
+        self.time_coeff=0.1
         
         # init
         self.tree.pos[0]=self.pos_start
@@ -65,7 +66,7 @@ class rrt_star():
             curr_pos=self.tree.pos[i]
             curr_dist=np.linalg.norm(np.asarray(curr_pos)-np.asarray(pos))
             curr_time=self.tree.time[i]
-            if (curr_dist < min_dist) and (curr_time >= min_time):
+            if (curr_dist< min_dist) and (curr_time >= min_time):
                 min_dist=curr_dist
                 min_idx=i
         return min_idx
@@ -84,11 +85,21 @@ class rrt_star():
     def step(self):
         '''searching through stage...'''
         # select random pose
-        rand_pos=[random.random()*self.stage.w, self.stage.h*random.random()]
+        if self.iter%10==0:
+            rand_pos=[random.random()*18-4, 18*random.random()-4]
+        # elif self.iter%10==3 and self.iter>300:
+        #     rand_pos=[random.random()*2+3, 2*random.random()+5]
+        else:
+            rand_pos=[random.random()*10, 10*random.random()]
         # get nearest node which becomes current position
         idx_closest = self.search_shortest_node(rand_pos)
         curr_pos = self.tree.pos[idx_closest]
         curr_time = self.tree.time[idx_closest]
+        self.cnt=0
+        self.tree.changes=[]
+        if self.iter>1500 and self.iter%10==0:
+            print(self.iter)
+            self.vmax*=0.99
         for i in range(self.cnt_expansion):
             # select next position based on velocity
             rand_rad=2*PI*random.random()
@@ -101,34 +112,42 @@ class rrt_star():
             self.stage.move_obs(curr_time+1)
             if self.stage.obstacle.check_collision(curr_pos,next_pos):
                 distance=np.linalg.norm(np.asarray(curr_pos)-np.asarray(next_pos))
-                cmin=self.tree.cost[idx_closest]+distance
+                cmin=self.tree.cost[idx_closest]+distance+self.time_coeff
                 xmin=idx_closest
-                near=self.near(next_pos)
-                for x in near: # connecting min path
-                    c_pos=self.tree.pos[x]
-                    if self.stage.obstacle.check_collision(c_pos,next_pos):
-                        distance=np.linalg.norm(np.asarray(c_pos)-np.asarray(next_pos))
-                        c=self.tree.cost[x]+distance
-                        if c<cmin:
-                            cmin=copy.deepcopy(c)
-                            xmin=copy.deepcopy(x)
-                next_pos_cost=cmin
+            else:
+                cmin=math.inf
+                xmin=math.inf
+            near=self.near(next_pos)
+            for x in near: # connecting min path
+                c_pos=self.tree.pos[x]
+                c_time=self.tree.time[x]
+                if self.stage.obstacle.check_collision(c_pos,next_pos):
+                    distance=np.linalg.norm(np.asarray(c_pos)-np.asarray(next_pos))
+                    c=self.tree.cost[x] + distance + self.time_coeff
+                    if c<cmin:
+                        cmin=copy.deepcopy(c)
+                        xmin=copy.deepcopy(x)
+            next_pos_cost=cmin
+            if xmin != math.inf:
                 self.expand_node(xmin,next_pos,cmin)
-                for x in near: # rewire
-                    c_pos=self.tree.pos[x]
-                    if self.stage.obstacle.check_collision(c_pos,next_pos):
-                        distance=np.linalg.norm(np.asarray(c_pos)-np.asarray(next_pos))
-                        c=next_pos_cost+distance
-                        if c<self.tree.cost[x]:
-                            if x != 0:
-                                self.tree.parent[x]= copy.deepcopy(self.nr_node)#next index
+                self.cnt+=1
+            for x in near: # rewire
+                c_pos=self.tree.pos[x]
+                if self.stage.obstacle.check_collision(c_pos,next_pos):
+                    distance=np.linalg.norm(np.asarray(c_pos)-np.asarray(next_pos))
+                    c=next_pos_cost+distance+self.time_coeff
+                    if c<self.tree.cost[x]:
+                        if x != 0:
+                            self.tree.changes.append([x,copy.deepcopy(self.tree.parent[x])])
+                            self.tree.parent[x]= copy.deepcopy(self.nr_node) #next index
+                            #self.cnt2+=1
             dist2goal=np.linalg.norm(np.asarray(next_pos)-np.asarray(self.pos_goal))
             if dist2goal<self.threshold:
                 print("GOAL! distance to goal left {}".format(dist2goal))
                 print("curr_time: {}".format(curr_time))
                 return True
-            self.iter+=1
-            return False
+        self.iter+=1
+        return False
     
     def backward(self):
         '''find optimal trajectory based on tree'''
